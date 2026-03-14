@@ -1,9 +1,12 @@
 package com.mybyd.autostart
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 
@@ -16,7 +19,29 @@ class MainActivity : AppCompatActivity() {
         // 此 Activity 主要用于逻辑中转，通常不需要复杂布局
         Log.d("MainActivity", "App started, executing sequence...")
 
+        checkOverlayPermission()
         startSequence()
+    }
+
+    private fun checkOverlayPermission() {
+        if (!Settings.canDrawOverlays(this)) {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivityForResult(intent, 1234)
+        } else {
+            startFloatingService()
+        }
+    }
+
+    private fun startFloatingService() {
+        val intent = Intent(this, FloatingService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
     }
 
     private fun startSequence() {
@@ -24,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "Step 1: Opening QQ Music...")
         launchApp("com.tencent.qqmusiccar")
 
-        // 3. 5s后, 打开百度地图(com.baidu.mapauto)
+        // 3. 4s后, 打开百度地图(com.baidu.mapauto)
         handler.postDelayed({
             Log.d("MainActivity", "Step 2: Opening Baidu Map...")
             launchApp("com.baidu.mapauto")
@@ -34,8 +59,8 @@ class MainActivity : AppCompatActivity() {
             handler.postDelayed({
                 Log.d("MainActivity", "Step 3: Exiting app...")
                 finishAndRemoveTask()
-            }, 5000)
-        }, 5000)
+            }, 3000)
+        }, 4000)
     }
 
     private fun launchApp(packageName: String) {
@@ -49,6 +74,15 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "Error launching $packageName", e)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1234) {
+            if (Settings.canDrawOverlays(this)) {
+                startFloatingService()
+            }
         }
     }
 
