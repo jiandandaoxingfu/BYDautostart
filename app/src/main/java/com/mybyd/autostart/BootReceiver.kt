@@ -40,6 +40,6 @@ class BootReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Failed to start MainActivity", e)
             }
-        }, 1000) // 延迟3秒
+        }, 3000) // 延迟3秒
     }
 }
