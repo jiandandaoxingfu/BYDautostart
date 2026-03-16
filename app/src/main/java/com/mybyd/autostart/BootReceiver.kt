@@ -9,37 +9,38 @@ import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
     companion object {
-        // 防止短时间内多次触发 (30秒内只允许触发一次)
         private var lastTriggerTime: Long = 0
-        private const val DEBOUNCE_INTERVAL = 3000L
+        private const val DEBOUNCE_INTERVAL = 10000L // 10秒内不重复触发
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
         Log.d("BootReceiver", "Action received: $action")
 
-        // 过滤掉不必要的动作
-        if (action == Intent.ACTION_SHUTDOWN) return
+        if (action != Intent.ACTION_BOOT_COMPLETED && action != "android.intent.action.LOCKED_BOOT_COMPLETED") {
+            return
+        }
 
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastTriggerTime < DEBOUNCE_INTERVAL) {
-            Log.d("BootReceiver", "Skipping duplicate trigger within debounce interval")
+            Log.d("BootReceiver", "Skipping duplicate trigger")
             return
         }
         lastTriggerTime = currentTime
 
-        // 1. 车机开机1s后, 软件启动
+        // 启动主界面并告知其开始自启动序列
         Handler(Looper.getMainLooper()).postDelayed({
             try {
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    launchIntent.putExtra("auto_start", true)
                     context.startActivity(launchIntent)
-                    Log.d("BootReceiver", "Starting MainActivity after 3s delay")
+                    Log.d("BootReceiver", "Starting MainActivity for auto-start sequence")
                 }
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Failed to start MainActivity", e)
             }
-        }, 3000) // 延迟3秒
+        }, 2000) // 延迟2秒，确保系统服务稳定
     }
 }
