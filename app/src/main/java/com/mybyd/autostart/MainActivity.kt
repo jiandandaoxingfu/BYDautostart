@@ -185,7 +185,7 @@ class MainActivity : AppCompatActivity() {
         handler.postDelayed({
             Log.d("MainActivity", "Sequence completed. Removing task and exiting...")
             finishAndRemoveTask()
-        }, cumulativeDelay)
+        }, cumulativeDelay + 3000L)
     }
 
     private fun launchApp(packageName: String) {

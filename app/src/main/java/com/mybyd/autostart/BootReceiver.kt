@@ -41,6 +41,6 @@ class BootReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Failed to start MainActivity", e)
             }
-        }, 2000) // 延迟2秒，确保系统服务稳定
+        }, 200) // 延迟2秒，确保系统服务稳定
     }
 }
