@@ -28,7 +28,7 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleDebug
 
     - name: Get tag version
       if: startsWith(github.ref, 'refs/tags/')
@@ -40,9 +40,10 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_tag.outputs.TAG }}
+        
         name: Release ${{ steps.get_tag.outputs.TAG }}
         files: |
-          app/build/outputs/apk/release/*.apk
+          app/build/outputs/apk/debug/*.apk
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
