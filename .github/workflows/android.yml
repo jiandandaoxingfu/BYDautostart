@@ -28,7 +28,7 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleDebug
 
     - name: Get tag version
       if: startsWith(github.ref, 'refs/tags/')
