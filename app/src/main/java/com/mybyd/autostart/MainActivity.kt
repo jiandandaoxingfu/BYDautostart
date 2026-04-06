@@ -1,5 +1,6 @@
 package com.mybyd.autostart
 
+import android.app.ActivityManager
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -59,7 +60,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (intent.getBooleanExtra("auto_start", false)) {
-            // 清除标志，防止 Activity 重建时再次触发
             intent.removeExtra("auto_start")
             startLaunchSequence()
         }
@@ -107,7 +107,6 @@ class MainActivity : AppCompatActivity() {
             sbStepInterval.progress = step.intervalSeconds.toInt()
             tvStepInterval.text = step.intervalSeconds.toString()
 
-            // 最后一个步骤不显示连接线
             layoutConnector.visibility = if (index == launchSteps.size - 1) View.GONE else View.VISIBLE
 
             sbStepInterval.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -150,7 +149,6 @@ class MainActivity : AppCompatActivity() {
             launchSteps.clear()
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                // 兼容旧版本，如果存的是毫秒（>30），则转为秒
                 var interval = obj.getLong("interval")
                 if (interval > 30) {
                     interval /= 1000
@@ -166,26 +164,55 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun isPackageRunning(packageName: String): Boolean {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        // 在比亚迪等系统上，com.byd.avc 运行状态可以通过 runningAppProcesses 获知
+        val processes = am.runningAppProcesses
+        if (processes != null) {
+            for (process in processes) {
+                if (process.processName == packageName) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     private fun startLaunchSequence() {
-        if (launchSteps.isEmpty()) return
-        
+        if (launchSteps.isEmpty()) {
+            finishAndRemoveTask()
+            return
+        }
         Log.d("MainActivity", "Starting flowchart sequence...")
-        
-        var cumulativeDelay = 0L
-        launchSteps.forEachIndexed { index, step ->
+        executeStep(0)
+    }
+
+    private fun executeStep(index: Int) {
+        if (index >= launchSteps.size) {
+            Log.d("MainActivity", "Sequence completed. Removing task and exiting...")
+            // 稍等 3 秒再退出，确保最后一个应用稳定
             handler.postDelayed({
-                launchApp(step.packageName)
-            }, cumulativeDelay)
-            
-            // 累加当前步骤设定的“等待时间”（转为毫秒）
-            cumulativeDelay += (step.intervalSeconds * 1000L)
+                finishAndRemoveTask()
+            }, 3000L)
+            return
         }
 
-        // 所有应用启动完成后，彻底退出应用并从最近任务列表中移除
-        handler.postDelayed({
-            Log.d("MainActivity", "Sequence completed. Removing task and exiting...")
-            finishAndRemoveTask()
-        }, cumulativeDelay + 3000L)
+        // 判断 360 (com.byd.avc) 是否正在运行
+        if (isPackageRunning("com.byd.avc")) {
+            Log.d("MainActivity", "360 (com.byd.avc) is running, waiting 3s before proceeding to step $index...")
+            handler.postDelayed({
+                executeStep(index)
+            }, 3000L)
+        } else {
+            val step = launchSteps[index]
+            Log.d("MainActivity", "Executing step ${index + 1}: ${step.packageName}")
+            launchApp(step.packageName)
+            
+            // 延迟执行下一个步骤
+            handler.postDelayed({
+                executeStep(index + 1)
+            }, step.intervalSeconds * 1000L)
+        }
     }
 
     private fun launchApp(packageName: String) {
@@ -203,6 +230,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        handler.removeCallbacksAndMessages(null)
+        // 这里不调用 handler.removeCallbacksAndMessages(null)
+        // 确保当 MainActivity 切换到后台后，队列仍能继续执行
     }
 }
